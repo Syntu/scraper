@@ -1,6 +1,8 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
+import time
+import json
 
 # InfinityFree मा डाटा पठाउने function
 def upload_to_website(data):
@@ -48,16 +50,45 @@ def get_nepali_time():
     nepali_time = utc_time + timedelta(hours=5, minutes=45)
     return nepali_time
 
-# मुख्य कार्य flow
+# मुख्य flow
 def update_data():
-    now = get_nepali_time()
-    day = now.strftime("%A")
-    if day in ["Friday", "Saturday"]:
-        print(f"Today is {day}. Using Thursday's data.")  # बिहीबारको डाटा प्रयोग गर्न सेटअप गर्नुहोस्।
-    else:
-        data = scrape_nepse_data()
-        if data:
-            upload_to_website(data)
+    last_data = None  # 15:05 को डाटा स्टोर गर्न
+    thursday_data = None  # बिहीबारको 15:05 को डाटा स्टोर गर्न
+
+    while True:
+        now = get_nepali_time()
+        day = now.strftime("%A")
+        current_time = now.strftime("%H:%M")
+
+        # शुक्रवार र शनिवारमा बिहीबारको डाटा प्रयोग
+        if day in ["Friday", "Saturday"]:
+            if thursday_data:
+                print(f"Using Thursday's data for {day}.")
+                upload_to_website(thursday_data)
+            else:
+                print("No Thursday data available yet.")
+        else:
+            # 10:30 देखि 15:05 को बीचमा डाटा स्क्रैप गर्ने
+            if "10:30" <= current_time <= "15:05":
+                print(f"Scraping data at {current_time}...")
+                scraped_data = scrape_nepse_data()
+                if scraped_data:
+                    last_data = scraped_data  # 15:05 को डाटा अपडेट गर्न
+                    if day == "Thursday":
+                        thursday_data = scraped_data  # बिहीबारको डाटा सेभ गर्ने
+                    upload_to_website(scraped_data)
+                else:
+                    print("Failed to scrape data.")
+            else:
+                # बाँकी समयमा 15:05 को डाटा प्रयोग गर्ने
+                if last_data:
+                    print(f"Using last data (15:05) for {current_time}.")
+                    upload_to_website(last_data)
+                else:
+                    print("No last data available.")
+
+        # 10 minutes कुर्नुहोस्
+        time.sleep(600)  # 600 seconds = 10 minutes
 
 if __name__ == "__main__":
     update_data()
