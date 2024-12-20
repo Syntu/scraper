@@ -1,8 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime, timedelta
-import schedule
-import time
 
 # InfinityFree मा डाटा पठाउने function
 def upload_to_website(data):
@@ -12,20 +10,20 @@ def upload_to_website(data):
         if response.status_code == 200:
             print("Data uploaded successfully!")
         else:
-            print("Failed to upload data:", response.status_code, response.text)
+            print(f"Failed to upload data: {response.status_code}, {response.text}")
     except Exception as e:
-        print("Error uploading data:", e)
+        print(f"Error uploading data: {e}")
 
-# नेप्सेबाट डाटा स्क्रैप गर्ने function
+# नेप्से अल्फा वेबसाइटबाट डाटा स्क्रैप गर्ने function
 def scrape_nepse_data():
     try:
-        response = requests.get("https://nepsealpha.com/live-market")
+        url = "https://nepsealpha.com/live-market"
+        response = requests.get(url)
         soup = BeautifulSoup(response.content, "html.parser")
 
         stock_data = []
-        # यहाँ तपाईंको तालिका पहिचान गर्ने कोड सही गर्नुपर्नेछ
-        table = soup.find("table", {"class": "table"})  # Table class replace गर्नुहोस्
-        rows = table.find_all("tr")[1:]  # Header line skip गर्ने
+        table = soup.find("table", {"class": "table"})  # सही class राख्नुहोस्
+        rows = table.find_all("tr")[1:]  # Header line हटाउने
 
         for row in rows:
             cols = row.find_all("td")
@@ -41,7 +39,7 @@ def scrape_nepse_data():
 
         return stock_data
     except Exception as e:
-        print("Error scraping data:", e)
+        print(f"Error scraping data: {e}")
         return None
 
 # नेपाली समय निकाल्ने function
@@ -55,24 +53,11 @@ def update_data():
     now = get_nepali_time()
     day = now.strftime("%A")
     if day in ["Friday", "Saturday"]:
-        print(f"Today is {day}. Using Thursday's data.")
-        # बिहीबारको डाटा प्रयोग गर्ने अन्य function राख्न सक्नुहुन्छ
+        print(f"Today is {day}. Using Thursday's data.")  # बिहीबारको डाटा प्रयोग गर्न सेटअप गर्नुहोस्।
     else:
         data = scrape_nepse_data()
         if data:
             upload_to_website(data)
 
-# Schedule settings
-def start_scheduling():
-    schedule.every().day.at("10:30").do(update_data)
-    schedule.every(1).minutes.do(update_data).tag("market_hours")
-
-    while True:
-        current_time = get_nepali_time().strftime("%H:%M")
-        if current_time == "15:05":
-            schedule.clear("market_hours")  # बजार समयपछि scheduler हटाउने
-        schedule.run_pending()
-        time.sleep(1)
-
 if __name__ == "__main__":
-    start_scheduling()
+    update_data()
